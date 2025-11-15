@@ -4,4 +4,6 @@ use anchor_lang::prelude::*;
 pub enum SolanceError {
     #[msg("Client is already initialized")]
     ClientAlreadyInitialized,
+    #[msg("Contractor is already initialized")]
+    ContractorAlreadyInitialized,
 }
