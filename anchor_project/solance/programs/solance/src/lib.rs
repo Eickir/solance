@@ -18,4 +18,9 @@ pub mod solance {
     pub fn initialize_client_ix(ctx: Context<InitializeClient>) -> Result<()> {
         initialize_client(ctx)
     }
+
+    pub fn initialize_contractor_ix(ctx: Context<InitializeContractor>) -> Result<()> {
+        initialize_contractor(ctx)
+    }
+
 }
