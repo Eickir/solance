@@ -3,3 +3,6 @@ pub use initialize_client::*;
 
 pub mod initialize_contractor;
 pub use initialize_contractor::*;
+
+pub mod initialize_contract;
+pub use initialize_contract::*;
