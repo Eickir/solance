@@ -17,3 +17,11 @@ pub struct ContractInitialized {
     pub client: Pubkey,
     pub contract_id: u64,
 }
+
+#[event]
+pub struct ProposalInitialized {
+    pub contract: Pubkey, 
+    pub contractor: Pubkey, 
+    pub proposal_id: u64, 
+    pub amount: u64
+}

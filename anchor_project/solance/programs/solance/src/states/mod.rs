@@ -34,3 +34,11 @@ pub struct Contractor {
     pub owner: Pubkey,
     pub next_proposal_id: u64,
 }
+
+#[account]
+pub struct Proposal {
+    pub contract: Pubkey, 
+    pub contractor: Pubkey, 
+    pub proposal_id: u64, 
+    pub amount: u64
+}

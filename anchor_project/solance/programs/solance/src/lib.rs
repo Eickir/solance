@@ -27,4 +27,8 @@ pub mod solance {
         initialize_contract(ctx, title, topic)
     }
 
+    pub fn initialize_proposal_ix(ctx: Context<InitializeProposal>, amount: u64) -> Result<()> {
+        initialize_proposal(ctx,  amount)
+    }
+
 }

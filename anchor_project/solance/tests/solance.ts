@@ -54,9 +54,25 @@ describe("solance program", () => {
     ], 
     program.programId
   )
+  const contractor_attacker = anchor.web3.Keypair.generate();
+  const [contractor_attacker_pda] = anchor.web3.PublicKey.findProgramAddressSync(
+        [
+          Buffer.from(CONTRACTOR_SEED),              
+          contractor_attacker.publicKey.toBuffer(),
+        ],
+        program.programId
+      );
   const space_contractor_account = 8 + 32 + 1 + 8;
 
   // Contract consts
+  const client_attacker = anchor.web3.Keypair.generate();
+  const [client_attacker_pda] = anchor.web3.PublicKey.findProgramAddressSync(
+        [
+          Buffer.from(CLIENT_SEED),              
+          client_attacker.publicKey.toBuffer(),
+        ],
+        program.programId
+      );
   const id = new anchor.BN(0);
   const [first_contract_pda] = anchor.web3.PublicKey.findProgramAddressSync(
         [
@@ -81,6 +97,27 @@ describe("solance program", () => {
   let wrong_title_length = good_title_length.repeat(10);
   const good_topic_length = "I need a blockchain engineer to write programs on Solana dApp";
   let wrong_topic_length = good_topic_length.repeat(10);
+
+  // Proposal consts
+  const proposal_id = new anchor.BN(0);
+  const [first_proposal_pda] = anchor.web3.PublicKey.findProgramAddressSync(
+        [
+          Buffer.from(PROPOSAL_SEED),              
+          contractor_pda.toBuffer(),
+          proposal_id.toArrayLike(Buffer, "le", 8)
+        ],
+        program.programId
+      );
+  const [first_proposal_attacker_pda] = anchor.web3.PublicKey.findProgramAddressSync(
+        [
+          Buffer.from(PROPOSAL_SEED),              
+          contractor_attacker_pda.toBuffer(),
+          proposal_id.toArrayLike(Buffer, "le", 8)
+        ],
+        program.programId
+      );
+  const amount = new anchor.BN(1_000_000_000);    
+
 
   describe("initialize client", () => {
 
@@ -248,7 +285,9 @@ describe("solance program", () => {
                 return true;
               }
               return false;
-          });        
+          })    
+          
+      });
 
       it("It Should fail to initialize a Contract with a topic that is longer than 500 bytes", async () => {
 
@@ -271,8 +310,112 @@ describe("solance program", () => {
               return false;
           });        
         }); 
+      
+      it("It Should fail to initialize a Contract when the signer is not the owner of the Client Account", async () => {
+
+        await airdrop(provider.connection, client_attacker.publicKey);
+
+        await program.methods
+          .initializeClientIx()
+          .accounts({
+            client: client_attacker.publicKey, 
+            clientAccount: client_attacker_pda, 
+            systemProgram: anchor.web3.SystemProgram.programId,
+          })
+          .signers([client_attacker])
+          .rpc({ commitment: "confirmed" });       
+
+        await assert.rejects( 
+          program.methods
+              .initializeContractIx(good_title_length, good_topic_length)
+              .accounts({
+                signer: client_attacker.publicKey, 
+                clientAccount: client_pda, 
+                contractAccount: second_contract_pda,
+                systemProgram: anchor.web3.SystemProgram.programId,
+              })
+              .signers([client_attacker])
+              .rpc({ commitment: "confirmed" })
+          , (err: any) => {
+              const anchorErr = err as anchor.AnchorError;
+              if (anchorErr.error.errorCode.code === "UnauthorizedAccount") {
+                return true;
+              }
+              return false;
+          });        
+      }); 
+    });
+
+    describe("initialize proposal", async() => {
+
+      it("It Should successfully initialize a Proposal account with 0 as proposal id", async () => {
+
+        await program.methods
+          .initializeProposalIx(amount)
+          .accounts({
+            contractor: contractor.publicKey, 
+            contract: first_contract_pda,
+            contractorAccount: contractor_pda, 
+            proposalAccount: first_proposal_pda, 
+            systemProgram: anchor.web3.SystemProgram.programId,
+          })
+          .signers([contractor])
+          .rpc({ commitment: "confirmed" });     
+
+      });    
+
+      it("It Should fail to initialize a Proposal when the signer is not the owner of the Contractor Account", async () => {
+
+          await airdrop(provider.connection, contractor_attacker.publicKey);
+
+          await program.methods
+              .initializeContractorIx()
+              .accounts({
+                contractor: contractor_attacker.publicKey, 
+                contractorAccount: contractor_attacker_pda, 
+                systemProgram: anchor.web3.SystemProgram.programId,
+              })
+              .signers([contractor_attacker])
+          .rpc({ commitment: "confirmed" });   
+
+          await program.methods
+                .initializeContractIx(good_title_length, good_topic_length)
+                .accounts({
+                  signer: client.publicKey, 
+                  clientAccount: client_pda, 
+                  contractAccount: second_contract_pda,
+                  systemProgram: anchor.web3.SystemProgram.programId,
+                })
+                .signers([client])
+                .rpc({ commitment: "confirmed" });         
+
+
+        await assert.rejects( 
+          program.methods
+          .initializeProposalIx(amount)
+          .accounts({
+            contractor: contractor_attacker.publicKey, 
+            contract: second_contract_pda,
+            contractorAccount: contractor_pda, 
+            proposalAccount: first_proposal_attacker_pda, 
+            systemProgram: anchor.web3.SystemProgram.programId,
+          })
+          .signers([contractor_attacker])
+          .rpc({ commitment: "confirmed" })
+        , (err: any) => {
+              const anchorErr = err as anchor.AnchorError;
+              if (anchorErr.error.errorCode.code === "UnauthorizedAccount") {
+                return true;
+              }
+              return false;
+          });        
+
       });
-  });
+
+    
+    });
+
+
 
 });
 
