@@ -2,7 +2,7 @@ import * as anchor from "@coral-xyz/anchor";
 import { Program } from "@coral-xyz/anchor";
 import { Solance } from "../target/types/solance";
 import { expect } from "chai";
-import { strict as assert } from "assert";   // ⬅️ important : Node assert, pas chai
+import { strict as assert } from "assert";  
 
 describe("solance program", () => {
 
@@ -10,12 +10,15 @@ describe("solance program", () => {
   const CONTRACTOR_SEED = "contractor";
   const CONTRACT_SEED = "contract";
   const PROPOSAL_SEED = "proposal";
+  const TITLE_MAX_LENGTH = 100;
+  const TOPIC_MAX_LENGTH = 500;
 
   const provider = anchor.AnchorProvider.env();
   anchor.setProvider(provider);
 
   const program = anchor.workspace.solance as Program<Solance>;
   
+  // Client consts 
   const client = anchor.web3.Keypair.generate();
   const [client_pda] = anchor.web3.PublicKey.findProgramAddressSync(
         [
@@ -34,7 +37,7 @@ describe("solance program", () => {
   )
   const space_client_account = 8 + 32 + 1 + 8;
 
-
+  // Contractor consts
   const contractor = anchor.web3.Keypair.generate();
   const [contractor_pda] = anchor.web3.PublicKey.findProgramAddressSync(
         [
@@ -52,6 +55,32 @@ describe("solance program", () => {
     program.programId
   )
   const space_contractor_account = 8 + 32 + 1 + 8;
+
+  // Contract consts
+  const id = new anchor.BN(0);
+  const [first_contract_pda] = anchor.web3.PublicKey.findProgramAddressSync(
+        [
+          Buffer.from(CONTRACT_SEED),              
+          client_pda.toBuffer(),
+          id.toArrayLike(Buffer, "le", 8)
+        ],
+        program.programId
+      );
+  const second_id = new anchor.BN(1);
+  const [second_contract_pda] = anchor.web3.PublicKey.findProgramAddressSync(
+        [
+          Buffer.from(CONTRACT_SEED),              
+          client_pda.toBuffer(),
+          second_id.toArrayLike(Buffer, "le", 8)
+        ],
+        program.programId
+      );
+
+
+  const good_title_length = "Blockchain Engineer on Solana";
+  let wrong_title_length = good_title_length.repeat(10);
+  const good_topic_length = "I need a blockchain engineer to write programs on Solana dApp";
+  let wrong_topic_length = good_topic_length.repeat(10);
 
   describe("initialize client", () => {
 
@@ -72,8 +101,7 @@ describe("solance program", () => {
       const clientAccount = await program.account.client.fetch(client_pda);
 
       expect(clientAccount.owner.toBase58()).to.equal(client.publicKey.toBase58());
-      expect(clientAccount.nextContractId).to.not.be.null;
-      expect(clientAccount.nextContractId?.toNumber()).to.equal(0);
+      expect(clientAccount.nextContractId.toNumber()).to.equal(0);
     });
 
     it("It Should fail when we want to initialize a Client account already initialized", async () => {
@@ -122,7 +150,7 @@ describe("solance program", () => {
 
     describe("initialize contractor", () => {
 
-      it("It Should successfully initialize a Contractor account with 0 on next_contract_id", async () => {
+      it("It Should successfully initialize a Contractor account with 0 on next_proposal_id", async () => {
 
             await airdrop(provider.connection, contractor.publicKey);
               
@@ -139,8 +167,7 @@ describe("solance program", () => {
             const contractorAccount = await program.account.contractor.fetch(contractor_pda);
 
             expect(contractorAccount.owner.toBase58()).to.equal(contractor.publicKey.toBase58());
-            expect(contractorAccount.nextProposalId).to.not.be.null;
-            expect(contractorAccount.nextProposalId?.toNumber()).to.equal(0);
+            expect(contractorAccount.nextProposalId.toNumber()).to.equal(0);
           });
 
       it("It Should fail when we want to initialize a Contractor account already initialized", async () => {
@@ -182,6 +209,68 @@ describe("solance program", () => {
             .signers([contractor_no_fund])
             .rpc({ commitment: "confirmed" })
           );
+      });
+    });
+
+    describe("initialize contract", async() => {
+
+      it("It Should successfully initialize a Contract account with 0 as contract id", async () => {
+
+        await program.methods
+              .initializeContractIx(good_title_length, good_topic_length)
+              .accounts({
+                signer: client.publicKey, 
+                clientAccount: client_pda, 
+                contractAccount: first_contract_pda,
+                systemProgram: anchor.web3.SystemProgram.programId,
+              })
+              .signers([client])
+              .rpc({ commitment: "confirmed" });         
+
+      }); 
+
+      it("It Should fail to initialize a Contract with a title that is longer than 100 bytes", async () => {
+
+        await assert.rejects( 
+          program.methods
+              .initializeContractIx(wrong_title_length, good_topic_length)
+              .accounts({
+                signer: client.publicKey, 
+                clientAccount: client_pda, 
+                contractAccount: second_contract_pda,
+                systemProgram: anchor.web3.SystemProgram.programId,
+              })
+              .signers([client])
+              .rpc({ commitment: "confirmed" })
+          , (err: any) => {
+              const anchorErr = err as anchor.AnchorError;
+              if (anchorErr.error.errorCode.code === "TitleTooLong") {
+                return true;
+              }
+              return false;
+          });        
+
+      it("It Should fail to initialize a Contract with a topic that is longer than 500 bytes", async () => {
+
+        await assert.rejects( 
+          program.methods
+              .initializeContractIx(good_title_length, wrong_topic_length)
+              .accounts({
+                signer: client.publicKey, 
+                clientAccount: client_pda, 
+                contractAccount: second_contract_pda,
+                systemProgram: anchor.web3.SystemProgram.programId,
+              })
+              .signers([client])
+              .rpc({ commitment: "confirmed" })
+          , (err: any) => {
+              const anchorErr = err as anchor.AnchorError;
+              if (anchorErr.error.errorCode.code === "TopicTooLong") {
+                return true;
+              }
+              return false;
+          });        
+        }); 
       });
   });
 
