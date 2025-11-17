@@ -15,3 +15,9 @@ pub use update_proposal::*;
 
 pub mod choose_proposal;
 pub use choose_proposal::*;
+
+pub mod mark_work_done;
+pub use mark_work_done::*;
+
+pub mod claim_payment;
+pub use claim_payment::*;

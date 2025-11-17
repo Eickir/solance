@@ -39,4 +39,12 @@ pub mod solance {
         choose_proposal(ctx)
     }
 
+    pub fn mark_work_done_ix(ctx: Context<MarkWorkDone>) -> Result<()> {
+        mark_work_done(ctx)
+    }
+
+    pub fn claim_payment_ix(ctx: Context<ClaimPayment>) -> Result<()> {
+        claim_payment(ctx)
+    }
+
 }

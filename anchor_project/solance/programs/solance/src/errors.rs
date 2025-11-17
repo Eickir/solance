@@ -18,5 +18,15 @@ pub enum SolanceError {
     InvalidProposalForContract,
     #[msg("ContractorAccount does not match proposal contractor")]
     InvalidContractorForProposal,
+    #[msg("Contract is not in Accepted status")]
+    ContractNotAccepted,
+    #[msg("Contract is not in Closed status")]
+    ContractNotClosed,
+    #[msg("Contract has no amount set")]
+    MissingAmount,
+    #[msg("ContractorAccount does not match contract's contractor")]
+    InvalidContractorForContract,
+    #[msg("Client does not have enough SOL to accept this proposal")]
+    InsufficientClientFunds,
 
 }

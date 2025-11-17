@@ -413,10 +413,7 @@ describe("solance program", () => {
       describe("Update proposal", async () => {
 
         it("It should update an existing proposal", async () => {
-          // On part du principe que first_proposal_pda a déjà été créée
-          // par le test "It Should successfully initialize a Proposal account with 0 as proposal id"
-
-          const newAmount = new anchor.BN(2_000_000_000); // nouveau montant
+          const newAmount = new anchor.BN(2_000_000_000); 
 
           await program.methods
             .updateProposalIx(newAmount)
@@ -429,7 +426,6 @@ describe("solance program", () => {
             .signers([contractor])
             .rpc({ commitment: "confirmed" });
 
-          // On vérifie on-chain que l'amount a bien été mis à jour
           const proposalAccount = await program.account.proposal.fetch(first_proposal_pda);
 
           expect(proposalAccount.amount.toNumber()).to.equal(newAmount.toNumber());
@@ -519,13 +515,11 @@ describe("solance program", () => {
             })
             .signers([client_attacker])
             .rpc({ commitment: "confirmed" })
-        );
-        // Si tu veux affiner :
-        // , (err: any) => {
-        //   if (!err.logs) return false;
-        //   const anchorErr = anchor.AnchorError.parse(err.logs);
-        //   return anchorErr.error.errorCode.code === "UnauthorizedAccount";
-        // }
+        ), (err: any) => {
+          if (!err.logs) return false;
+          const anchorErr = anchor.AnchorError.parse(err.logs);
+          return anchorErr.error.errorCode.code === "UnauthorizedAccount";
+        }
       });
 
       it("It should fail if proposal does not belong to the given contract", async () => {
@@ -565,20 +559,17 @@ describe("solance program", () => {
             })
             .signers([client])
             .rpc({ commitment: "confirmed" })
-        );
-        // Si tu veux tester l'erreur InvalidProposalForContract :
-        // , (err: any) => {
-        //   if (!err.logs) return false;
-        //   const anchorErr = anchor.AnchorError.parse(err.logs);
-        //   return anchorErr.error.errorCode.code === "InvalidProposalForContract";
-        // }
+        ), (err: any) => {
+          if (!err.logs) return false;
+          const anchorErr = anchor.AnchorError.parse(err.logs);
+          return anchorErr.error.errorCode.code === "InvalidProposalForContract";
+        }
       });
 
       it("It should fail if contractorAccount does not match proposal contractor", async () => {
         
         await airdrop(provider.connection, contractor_attacker.publicKey);
 
-        // On initialise son ContractorAccount
         await program.methods
           .initializeContractorIx()
           .accounts({
@@ -597,22 +588,233 @@ describe("solance program", () => {
               clientAccount: client_pda,
               contract: first_contract_pda,
               proposalAccount: first_proposal_pda,
-              contractorAccount: contractor_attacker_pda, // 👈 mismatch volontaire
+              contractorAccount: contractor_attacker_pda, 
             })
             .signers([client])
             .rpc({ commitment: "confirmed" })
-        );
-        // Et là tu peux affiner :
-        // , (err: any) => {
-        //   if (!err.logs) return false;
-        //   const anchorErr = anchor.AnchorError.parse(err.logs);
-        //   return anchorErr.error.errorCode.code === "InvalidContractorForProposal";
-        // }
+        ), (err: any) => {
+            if (!err.logs) return false;
+          const anchorErr = anchor.AnchorError.parse(err.logs);
+          return anchorErr.error.errorCode.code === "InvalidContractorForProposal";
+        }
       });
 
     });
 
-    
+    describe("mark work done", async () => {
+
+      it("It should let the contractor mark the work as done and close the contract", async () => {
+
+        await program.methods
+          .markWorkDoneIx()
+          .accounts({
+            contractor: contractor.publicKey,
+            contractorAccount: contractor_pda,
+            contract: first_contract_pda,
+          })
+          .signers([contractor])
+          .rpc({ commitment: "confirmed" });
+
+        const contractAccount = await program.account.contract.fetch(first_contract_pda);
+        expect("closed" in contractAccount.status).to.be.true;
+      });
+
+      it("It should fail if a different contractor tries to mark work as done", async () => {
+        await airdrop(provider.connection, contractor_attacker.publicKey);
+
+        await assert.rejects(
+          program.methods
+            .markWorkDoneIx()
+            .accounts({
+              contractor: contractor_attacker.publicKey,
+              contractorAccount: contractor_attacker_pda,
+              contract: first_contract_pda,
+            })
+            .signers([contractor_attacker])
+            .rpc({ commitment: "confirmed" }),
+        ), (err: any) => {
+            if (!err.logs) return false;
+          const anchorErr = anchor.AnchorError.parse(err.logs);
+          return anchorErr.error.errorCode.code === "UnauthorizedAccount"
+        }
+      });
+
+
+      it("It should fail if contract is not in Accepted status", async () => {
+
+        const clientAccount = await program.account.client.fetch(client_pda);
+        const nextContractId = clientAccount.nextContractId as anchor.BN;
+
+        const [other_contract_pda] = anchor.web3.PublicKey.findProgramAddressSync(
+          [
+            Buffer.from(CONTRACT_SEED),
+            client_pda.toBuffer(),
+            nextContractId.toArrayLike(Buffer, "le", 8),
+          ],
+          program.programId
+        );
+
+        await program.methods
+          .initializeContractIx(good_title_length, good_topic_length)
+          .accounts({
+            signer: client.publicKey,
+            clientAccount: client_pda,
+            contractAccount: other_contract_pda,
+            systemProgram: anchor.web3.SystemProgram.programId,
+          })
+          .signers([client])
+          .rpc({ commitment: "confirmed" });
+
+
+        await assert.rejects(
+          program.methods
+            .markWorkDoneIx()
+            .accounts({
+              contractor: contractor.publicKey,
+              contractorAccount: contractor_pda,
+              contract: other_contract_pda,
+            })
+            .signers([contractor])
+            .rpc({ commitment: "confirmed" }),
+        );
+      });
+
+    });
+
+
+    describe("claim payment", async () => {
+
+      it("It should transfer SOL from client to contractor when contract is closed", async () => {
+        
+        await airdrop(provider.connection, client.publicKey, 3_000_000_000);
+
+        const contractAccountBefore = await program.account.contract.fetch(first_contract_pda);
+        const paidAmount = (contractAccountBefore.amount as anchor.BN).toNumber();
+
+        const beforeClientBalance = await provider.connection.getBalance(client.publicKey);
+        const beforeContractorBalance = await provider.connection.getBalance(contractor.publicKey);
+
+        await program.methods
+          .claimPaymentIx()
+          .accounts({
+            client: client.publicKey,
+            contractor: contractor.publicKey,
+            clientAccount: client_pda,
+            contractorAccount: contractor_pda,
+            contract: first_contract_pda,
+            systemProgram: anchor.web3.SystemProgram.programId,
+          })
+          .signers([client, contractor]) 
+          .rpc({ commitment: "confirmed" });
+
+        const afterClientBalance = await provider.connection.getBalance(client.publicKey);
+        const afterContractorBalance = await provider.connection.getBalance(contractor.publicKey);
+
+        expect(afterContractorBalance - beforeContractorBalance).to.equal(paidAmount);
+        await assert.rejects(
+          program.account.contract.fetch(first_contract_pda)
+        );
+      });
+
+
+      it("It should fail if contract is not closed", async () => {
+
+        const clientAccount = await program.account.client.fetch(client_pda);
+        const nextContractId = clientAccount.nextContractId as anchor.BN;
+
+        const [new_contract_pda] = anchor.web3.PublicKey.findProgramAddressSync(
+          [
+            Buffer.from(CONTRACT_SEED),
+            client_pda.toBuffer(),
+            nextContractId.toArrayLike(Buffer, "le", 8),
+          ],
+          program.programId
+        );
+
+        await program.methods
+          .initializeContractIx(good_title_length, good_topic_length)
+          .accounts({
+            signer: client.publicKey,
+            clientAccount: client_pda,
+            contractAccount: new_contract_pda,
+            systemProgram: anchor.web3.SystemProgram.programId,
+          })
+          .signers([client])
+          .rpc({ commitment: "confirmed" });
+
+        const contractorAccount = await program.account.contractor.fetch(contractor_pda);
+        const nextProposalId = contractorAccount.nextProposalId as anchor.BN;
+
+        const [new_proposal_pda] = anchor.web3.PublicKey.findProgramAddressSync(
+          [
+            Buffer.from(PROPOSAL_SEED),
+            contractor_pda.toBuffer(),
+            nextProposalId.toArrayLike(Buffer, "le", 8),
+          ],
+          program.programId
+        );
+
+        await program.methods
+          .initializeProposalIx(amount)
+          .accounts({
+            contractor: contractor.publicKey,
+            contract: new_contract_pda,
+            contractorAccount: contractor_pda,
+            proposalAccount: new_proposal_pda,
+            systemProgram: anchor.web3.SystemProgram.programId,
+          })
+          .signers([contractor])
+          .rpc({ commitment: "confirmed" });
+
+        await program.methods
+          .chooseProposalIx()
+          .accounts({
+            signer: client.publicKey,
+            clientAccount: client_pda,
+            contract: new_contract_pda,
+            proposalAccount: new_proposal_pda,
+            contractorAccount: contractor_pda,
+          })
+          .signers([client])
+          .rpc({ commitment: "confirmed" });
+
+        await assert.rejects(
+          program.methods
+            .claimPaymentIx()
+            .accounts({
+              client: client.publicKey,
+              contractor: contractor.publicKey,
+              clientAccount: client_pda,
+              contractorAccount: contractor_pda,
+              contract: new_contract_pda,
+              systemProgram: anchor.web3.SystemProgram.programId,
+            })
+            .signers([client, contractor])
+            .rpc({ commitment: "confirmed" }),
+        );
+      });
+
+      it("It should fail on second claim (no double payment)", async () => {
+
+        await assert.rejects(
+          program.methods
+            .claimPaymentIx()
+            .accounts({
+              client: client.publicKey,
+              contractor: contractor.publicKey,
+              clientAccount: client_pda,
+              contractorAccount: contractor_pda,
+              contract: first_contract_pda,
+              systemProgram: anchor.web3.SystemProgram.programId,
+            })
+            .signers([client, contractor])
+            .rpc({ commitment: "confirmed" }),
+        );
+
+      });
+
+    });
+
 
 
 

@@ -1,0 +1,88 @@
+use anchor_lang::prelude::*;
+use anchor_lang::system_program;
+use crate::states::{Client, Contractor, Contract, Status};
+use crate::constants::VAULT_SEED;
+use crate::errors::SolanceError;
+
+pub fn claim_payment(ctx: Context<ClaimPayment>) -> Result<()> {
+    let contract = &mut ctx.accounts.contract;
+
+    require!(
+        contract.status == Status::Closed,
+        SolanceError::ContractNotClosed
+    );
+
+    let amount = contract
+        .amount
+        .ok_or(SolanceError::MissingAmount)?;
+
+    let vault = &ctx.accounts.vault;
+    let contractor = &ctx.accounts.contractor;
+
+    // 3. Préparation du CPI transfer vault -> contractor
+    let cpi_accounts = system_program::Transfer {
+        from: vault.to_account_info(),
+        to: contractor.to_account_info(),
+    };
+
+
+    let vault_bump = ctx.bumps.vault;
+    let binding = contract.key();
+    let seeds: &[&[u8]] = &[
+        VAULT_SEED,
+        binding.as_ref(),
+        &[vault_bump],
+    ];
+
+    let binding = [seeds];
+    let cpi_ctx = CpiContext::new_with_signer(
+        ctx.accounts.system_program.to_account_info(),
+        cpi_accounts,
+        &binding,
+    );
+
+    system_program::transfer(cpi_ctx, amount)?;
+
+    // 5. Empêcher double paiement
+    contract.amount = None;
+
+    Ok(())
+}
+
+#[derive(Accounts)]
+pub struct ClaimPayment<'info> {
+    #[account(mut)]
+    pub client: Signer<'info>,
+
+    #[account(mut)]
+    pub contractor: SystemAccount<'info>,
+
+    #[account(
+        mut,
+        constraint = client_account.owner == client.key() @ SolanceError::UnauthorizedAccount
+    )]
+    pub client_account: Account<'info, Client>,
+
+    #[account(
+        mut,
+        constraint = contractor_account.owner == contractor.key() @ SolanceError::UnauthorizedAccount
+    )]
+    pub contractor_account: Account<'info, Contractor>,
+
+    #[account(
+        mut,
+        constraint = contract.client == client_account.key() @ SolanceError::UnauthorizedAccount,
+        constraint = contract.contractor == Some(contractor_account.key()) @ SolanceError::InvalidContractorForContract,
+        constraint = contract.status == Status::Closed @ SolanceError::ContractNotClosed,
+    )]
+    pub contract: Account<'info, Contract>,
+
+    #[account(
+        mut,
+        seeds = [VAULT_SEED, contract.key().as_ref()],
+        bump,
+    )]
+    /// CHECK: Vault controlled by program, contains lamports only
+    pub vault: UncheckedAccount<'info>,
+    pub system_program: Program<'info, System>,
+}
