@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import { useCreateContract } from "@/lib/hooks/useCreateContract";
+import { useCreateContract } from "@/hooks/useCreateContract";
 
 export function ContractForm() {
   const [title, setTitle] = useState("");

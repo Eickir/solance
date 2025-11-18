@@ -9,7 +9,7 @@ import idl from "./solance_idl.json";
 
 export const SOLANCE_PROGRAM_ID = new PublicKey(
   // soit idl.address, soit metadata.address selon ton IDL
-  (idl as any).address ?? "4JasCNGt4XMT7hGh86296TQXrvyJYXEhF6R4apdVLyXg"
+  (idl as any).address ?? "gTki9yanzdiRcofYx6QpbQVQ8gcBHtGCS8Scg8yECyi"
 );
 
 export function useSolanceProgram() {

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useSubmitProposal } from "@/lib/hooks/useSubmitProposal";
-import { useMarkWorkDone } from "@/lib/hooks/useMarkWorkDone";
+import { useMarkWorkDone } from "@/hooks/useMarkWorkDone";
 
 interface Props {
   contractPubkey: string;

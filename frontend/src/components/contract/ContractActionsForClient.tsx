@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { useChooseProposal } from "@/lib/hooks/useChooseProposal";
-import { useClaimPayment } from "@/lib/hooks/useClaimPayment";
+import { useChooseProposal } from "@/hooks/useChooseProposal";
+import { useClaimPayment } from "@/hooks/useClaimPayment";
 
 interface Props {
   contractPubkey: string;
