@@ -4,22 +4,21 @@
 import { useState } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { WalletButton } from "@/components/wallet/WalletButton";
-// Quand tu seras prêt à brancher :
-// import { useCreateContract } from "@/hooks/useCreateContract";
+import { useCreateContract } from "@/hooks/useCreateContract";
 
 export default function NewContractPage() {
   const { connected } = useWallet();
   const [title, setTitle] = useState("");
   const [topic, setTopic] = useState("");
 
-  // const { createContract, loading, error } = useCreateContract();
+  const { createContract, loading, error } = useCreateContract();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!connected) return;
 
     // ici tu appelleras:
-    // await createContract(title, topic);
+    await createContract(title, topic);
     console.log("TODO: call createContract(title, topic)", { title, topic });
   };
 

@@ -4,7 +4,7 @@ import "./globals.css";
 import "@solana/wallet-adapter-react-ui/styles.css"; 
 
 import { WalletProvider } from "@/components/wallet/WalletProvider";
-import { Navbar } from "@/components/layout/Navbar";
+import { NavBar } from "@/components/layout/Navbar";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -30,7 +30,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-slate-950 text-slate-100`}
       >
         <WalletProvider>
-          <Navbar />
+          <NavBar />
           <main className="max-w-5xl mx-auto px-4 py-6">{children}</main>
         </WalletProvider>
       </body>
