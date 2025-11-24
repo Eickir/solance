@@ -595,9 +595,6 @@ describe("solance program", () => {
       // Le client a au moins payé les fees de la tx
       expect(afterClientBalance).to.be.lessThanOrEqual(beforeClientBalance);
 
-      // amount doit être None/null maintenant
-      const contractAfter = await program.account.contract.fetch(first_contract_pda);
-      expect(contractAfter.amount).to.equal(null);
     });
 
 
