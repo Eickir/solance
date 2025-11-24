@@ -3,7 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import "@solana/wallet-adapter-react-ui/styles.css";
 
-import { WalletProvider } from "@/components/wallet/WalletProvider";
+import { WalletContextProvider } from "@/components/wallet/WalletProvider";
 import { NavBar } from "@/components/layout/Navbar";
 import { RoleProvider } from "@/components/layout/RoleProvider";
 
@@ -30,7 +30,7 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-slate-950 text-slate-100 min-h-screen`}
       >
-        <WalletProvider>
+        <WalletContextProvider>
           <RoleProvider>
             <div className="min-h-screen flex flex-col">
               <NavBar />
@@ -39,7 +39,7 @@ export default function RootLayout({
               </main>
             </div>
           </RoleProvider>
-        </WalletProvider>
+        </WalletContextProvider>
       </body>
     </html>
   );
