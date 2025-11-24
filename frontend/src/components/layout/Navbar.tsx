@@ -20,7 +20,7 @@ export function NavBar() {
 
   const isActive = (href: string) => pathname === href;
 
-  // 🔁 Auto-refresh de la balance quand le compte change on-chain
+  // Auto-refresh de la balance
   useEffect(() => {
     if (!connected || !publicKey || !connection) {
       setBalanceSol(null);
@@ -30,7 +30,6 @@ export function NavBar() {
     let cancelled = false;
     let subId: number | null = null;
 
-    // 1) Fetch initial
     const fetchBalance = async () => {
       try {
         setLoadingBalance(true);
@@ -40,32 +39,25 @@ export function NavBar() {
         }
       } catch (e) {
         console.error("Failed to fetch balance:", e);
-        if (!cancelled) {
-          setBalanceSol(null);
-        }
+        if (!cancelled) setBalanceSol(null);
       } finally {
-        if (!cancelled) {
-          setLoadingBalance(false);
-        }
+        if (!cancelled) setLoadingBalance(false);
       }
     };
 
     fetchBalance();
 
-    // 2) Subscribe aux changements de compte
     (async () => {
       try {
         subId = await connection.onAccountChange(publicKey, (info) => {
           if (cancelled) return;
-          const lamports = info.lamports;
-          setBalanceSol(lamports / LAMPORTS_PER_SOL);
+          setBalanceSol(info.lamports / LAMPORTS_PER_SOL);
         });
       } catch (e) {
         console.error("onAccountChange subscription error:", e);
       }
     })();
 
-    // 3) Cleanup
     return () => {
       cancelled = true;
       if (subId !== null) {
@@ -77,7 +69,7 @@ export function NavBar() {
   return (
     <header className="border-b border-slate-900/60 bg-slate-950/80 backdrop-blur">
       <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
-        {/* Logo + Home */}
+        {/* Logo + Home + nav */}
         <div className="flex items-center gap-6">
           <Link href="/" className="flex items-center gap-2">
             <span className="text-base font-semibold">Solance</span>
@@ -86,7 +78,6 @@ export function NavBar() {
             </span>
           </Link>
 
-          {/* Liens contextuels selon le rôle */}
           {connected && (
             <nav className="hidden md:flex items-center gap-4 text-xs text-slate-400">
               <Link
@@ -96,58 +87,47 @@ export function NavBar() {
                 Home
               </Link>
 
-              {role === "client" && (
-                <>
-                  <Link
-                    href="/client"
-                    className={
-                      isActive("/client") ? "text-slate-100" : "hover:text-slate-200"
-                    }
-                  >
-                    Client dashboard
-                  </Link>
-                  <Link
-                    href="/client/contracts"
-                    className={
-                      pathname.startsWith("/client/contracts")
-                        ? "text-slate-100"
-                        : "hover:text-slate-200"
-                    }
-                  >
-                    Contracts
-                  </Link>
-                </>
-              )}
+              {/* Toujours visibles une fois connecté */}
+              <Link
+                href="/client"
+                className={
+                  pathname.startsWith("/client")
+                    ? "text-slate-100"
+                    : "hover:text-slate-200"
+                }
+              >
+                Client dashboard
+              </Link>
 
-              {role === "contractor" && (
-                <>
-                  <Link
-                    href="/contractor"
-                    className={
-                      isActive("/contractor")
-                        ? "text-slate-100"
-                        : "hover:text-slate-200"
-                    }
-                  >
-                    Contractor dashboard
-                  </Link>
-                  <Link
-                    href="/client"
-                    className={
-                      pathname.startsWith("/contractor/available-contracts")
-                        ? "text-slate-100"
-                        : "hover:text-slate-200"
-                    }
-                  >
-                    Client Dashboard
-                  </Link>
-                </>
+              <Link
+                href="/contractor"
+                className={
+                  pathname.startsWith("/contractor")
+                    ? "text-slate-100"
+                    : "hover:text-slate-200"
+                }
+              >
+                Contractor dashboard
+              </Link>
+
+              {/* Lien "Contracts" uniquement en mode client (optionnel) */}
+              {role === "client" && (
+                <Link
+                  href="/client/contracts"
+                  className={
+                    pathname.startsWith("/client/contracts")
+                      ? "text-slate-100"
+                      : "hover:text-slate-200"
+                  }
+                >
+                  Contracts
+                </Link>
               )}
             </nav>
           )}
         </div>
 
-        {/* Wallet + rôles + balance */}
+        {/* Wallet + rôle + balance */}
         <div className="flex items-center gap-3">
           {connected && role && (
             <span className="hidden sm:inline text-[11px] px-2 py-0.5 rounded-full bg-slate-900 border border-slate-700 text-slate-300">
