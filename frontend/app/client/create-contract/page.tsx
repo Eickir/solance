@@ -1,7 +1,7 @@
 // frontend/app/contracts/new/page.tsx
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { WalletButton } from "@/components/wallet/WalletButton";
 import { useCreateContract } from "@/hooks/useCreateContract";
@@ -10,7 +10,7 @@ export default function NewContractPage() {
   const { connected } = useWallet();
   const [title, setTitle] = useState("");
   const [topic, setTopic] = useState("");
-
+  const [reloadCounter, setReloadCounter] = useState(0);
   const { createContract, loading, error } = useCreateContract();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -18,7 +18,14 @@ export default function NewContractPage() {
     if (!connected) return;
 
     await createContract(title, topic);
+    setReloadCounter((n) => n + 1);
   };
+
+  useEffect(() => {
+    if (reloadCounter === 0) return;
+    setTitle("");
+    setTopic("");
+  }, [reloadCounter]);
 
   if (!connected) {
     return (
