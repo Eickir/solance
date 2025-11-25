@@ -3,7 +3,7 @@
 
 ## Project Description
 
-- **Deployed Frontend URL:** `TODO: add Vercel / Netlify / local URL`
+- **Deployed Frontend URL:** `https://solance-six.vercel.app/`
 - **Solana Program ID:** `9os8f9dUNrZzg53kjGb1wj1stMabFFj4fuRnrF9pCjR6`
 
 ---
